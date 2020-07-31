@@ -88,6 +88,7 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 	saveToES(&p, id)
 }
 
+// Save a post to ElasticSearch
 func saveToES(p *Post, id string) {
 	// Create a client
 	es_client, err := elastic.NewClient(elastic.SetURL(ES_URL), elastic.SetSniff(false))
@@ -117,7 +118,7 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 	lat, _ := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
 	lon, _ := strconv.ParseFloat(r.URL.Query().Get("lon"), 64)
 
-	// Range is optional. //
+	// range is optional
 	ran := DISTANCE
 	if val := r.URL.Query().Get("range"); val != "" {
 		ran = val + "km"
@@ -125,7 +126,7 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("Search received: %f %f %s\n", lat, lon, ran)
 
-	// Create a client. //
+	// Create a client
 	client, err := elastic.NewClient(elastic.SetURL(ES_URL), elastic.SetSniff(false))
 	if err != nil {
 		panic(err)
@@ -143,8 +144,8 @@ func handlerSearch(w http.ResponseWriter, r *http.Request) {
 		Query(q).
 		Pretty(true).
 		Do()
-	// Handle error. //
 	if err != nil {
+		// Handle error
 		panic(err)
 	}
 
