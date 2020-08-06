@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cloud.google.com/go/bigtable"
 	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
@@ -22,8 +23,10 @@ const (
 	INDEX       = "around"
 	TYPE        = "post"
 	DISTANCE    = "200km"
-	ES_URL      = "http://35.202.119.136:9200"
+	ES_URL      = "http://34.71.210.94:9200"
 	BUCKET_NAME = "post-images-284308"
+	PROJECT_ID  = "around-284308"
+	BT_INSTANCE = "around­post"
 )
 
 type Location struct {
@@ -133,24 +136,47 @@ func handlerPost(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	ctx := context.Background()
-
-	// replace it with your real bucket name.
-	_, attrs, err := saveToGCS(ctx, file, BUCKET_NAME, id)
-	if err != nil {
-		http.Error(w, "GCS is not setup", http.StatusInternalServerError)
-		fmt.Printf("GCS is not setup %v\n", err)
-		return
-	}
-
-	// Update the media link after saving to GCS.
-	p.Url = attrs.MediaLink
-
-	// Save to ES.
-	saveToES(p, id)
+	//ctx := context.Background()
+	//
+	//// replace it with your real bucket name.
+	//_, attrs, err := saveToGCS(ctx, file, BUCKET_NAME, id)
+	//if err != nil {
+	//	http.Error(w, "GCS is not setup", http.StatusInternalServerError)
+	//	fmt.Printf("GCS is not setup %v\n", err)
+	//	return
+	//}
+	//
+	//// Update the media link after saving to GCS.
+	//p.Url = attrs.MediaLink
+	//
+	//// Save to ES.
+	//saveToES(p, id)
 
 	// Save to BigTable.
 	//saveToBigTable(p, id)
+	fmt.Printf("Post is saved to Index: %s\n", p.Message)
+
+	ctx := context.Background()
+	// you must update project name here
+	bt_client, err := bigtable.NewClient(ctx, PROJECT_ID, BT_INSTANCE)
+	if err != nil {
+		panic(err)
+		return
+	}
+	tbl := bt_client.Open("post")
+	mut := bigtable.NewMutation()
+	t := bigtable.Now()
+	mut.Set("post", "user", t, []byte(p.User))
+	mut.Set("post", "message", t, []byte(p.Message))
+	mut.Set("location", "lat", t, []byte(strconv.FormatFloat(p.Location.Lat, 'f', -1, 64)))
+	mut.Set("location", "lon", t, []byte(strconv.FormatFloat(p.Location.Lon, 'f', -1, 64)))
+	err = tbl.Apply(ctx, id, mut)
+	if err != nil {
+		panic(err)
+		return
+	}
+	fmt.Printf("Post is saved to BigTable: %s\n", p.Message)
+
 }
 
 // Save an image to GCS.
